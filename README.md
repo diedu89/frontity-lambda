@@ -13,7 +13,7 @@ This project was bootstrapped with [Frontity](https://frontity.org/).
 - Zip your lambda project code
 - Update the lambda function code in aws with the zip (Function code > Action > Upload a .zip file)
 
-Instead of building/copying/zipping/uploading you can also setup CI/CD with the [configuration from this repo](#CI/CD)
+Instead of building/copying/zipping/uploading you can also setup CI/CD with the [configuration from this repo](#circleci)
 
 ### Expose lambda function with API Gateway
 
@@ -63,7 +63,7 @@ With this your site will be available in the cloudfront domain name.
 
 **If you're using a custom domain you'll need to add an ALIAS record in your domain manager pointing to the cloudfront url.**
 
-### CI/CD
+### circleci
 
 This repo contains a circleci configuration and the code for the lambda function, to use this config you need to setup a context in circleci named `frontity` and add the variables below:
 
