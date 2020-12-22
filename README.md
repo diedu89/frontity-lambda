@@ -2,79 +2,75 @@
 
 This project was bootstrapped with [Frontity](https://frontity.org/).
 
-#### Table of Contents
+## Deploy to AWS lambda
 
-- [Launch a development server](#launch-a-development-server)
-- [Create your custom theme](#create-your-custom-theme)
-- [Create a production-ready build](#create-a-production-ready-build)
-- [Deploy](#deploy)
+### Create lambda function 
 
-### Launch a development server
+- Go to AWS console > lambda > Create Function
+- Build your site locally with `npx frontity build`
+- Create a new npm project with the [code](https://community.frontity.org/t/deploy-to-aws-lambda/814/8) for your lambda in `index.js`
+- Copy the `build` from your frontity project to your lambda project
+- Zip your lambda project code
+- Update the lambda function code in aws with the zip (Function code > Action > Upload a .zip file)
 
-```
-npx frontity dev
-```
+Instead of building/copying/zipping/uploading you can also setup CI/CD with the [configuration from this repo](#CI/CD)
 
-Runs the app in development mode. Open http://localhost:3000 to view it in the browser.
+### Expose lambda function with API Gateway
 
-The site will automatically reload if you make changes inside the `packages` folder. You will see the build errors in the console.
+**Create API**
 
-> Have a look at our [Quick Start Guide](https://docs.frontity.org/getting-started/quick-start-guide)
+- Go to AWS console > API Gateway > Create API
+- Select the public REST API type
+- Set the name
+- In Endpoint Type select `Regional`
 
-### Create your custom theme
+**Create Proxy method**
 
-```
-npx frontity create-package your-custom-theme
-```
+- In your API, select Actions > Create Method
+- Set Method to `ANY`
+- Select `Lambda Function` as integration type
+- Mark `Use Lambda Proxy integration`
+- And select the lambda function you previously created
 
-Use the command `npx frontity create-package` to create a new package that can be set in your `frontity.settings.js` as your theme
+This proxy will redirect all traffic from `/`, but your lambda should also process all possible routes, that is why we now need a proxy resource
 
-> Have a look at our blog post [How to Create a React WordPress Theme in 30 Minutes](https://frontity.org/blog/how-to-create-a-react-theme-in-30-minutes/)
+**Create Proxy Resource**
 
-### Create a production-ready build
+- In your API, select Actions > Create Resource
+- Mark `Configure as proxy resource`, this will autocomplete Name and Path inputs with necessary values.
 
-```
-npx frontity build
-```
+**Deploy API**
 
-Builds the app for production to the `build` folder.
+- Don't forget to deploy the API with Actions > Deploy API
+- Select or create a stage
 
-This will create a `/build` folder with a `server.js` (a [serverless function](https://vercel.com/docs/v2/serverless-functions/introduction)) file and a `/static` folder with all your javascript files and other assets.
+So far the site is exposed but the url needs the stage name at the end, this will break the routing on the site, we can fix this by mapping a cloudfront distribution to the corresponding URL/stage.
 
-Your app is ready to be deployed.
+### Map cloudfront to API/stage
 
-> Get more info about [Frontity's architecture](https://docs.frontity.org/architecture)
+- Go to AWS console > CloudFront > Create Distribution
+- Web > Get started
+- In `Origin Domain Name` enter the url provided by your API Gateway
+- `Origin Path` will be the stage name
+- Tweaks configs according your needs
+- With custom domains you'll have to:
+    * Add your domain to `Alternate Domain Names (CNAMEs)`
+    * [Request](https://www.youtube.com/watch?v=Ge-dkZgqLKg) a certificate in AWS ACM
+    * Set your SSL certificate in `SSL Certificate` field
+- Once created you'll need to wait until it gets deployed
 
-### Deploy
+With this your site will be available in the cloudfront domain name.
 
-With the files generated in the _build_ you can deploy your project
+**If you're using a custom domain you'll need to add an ALIAS record in your domain manager pointing to the cloudfront url.**
 
-#### As a node app
+### CI/CD
 
-Use `npx frontity serve` to run it like a normal Node app.
+This repo contains a circleci configuration and the code for the lambda function, to use this config you need to setup a context in circleci named `frontity` and add the variables below:
 
-This command generates (and runs) a small web server that uses the generated `server.js` and `/static` to serve your content
-
-#### As a serverless service
-
-Upload your `static` folder to a CDN and your `server.js` file to a serverless service, like Now or Netlify.
-
-> Get more info about [how to deploy](https://docs.frontity.org/deployment) a Frontity project
-
----
-
-### » Frontity Channels 🌎
-
-We have different channels at your disposal where you can find information about the project, discuss about it and get involved:
-
-- 📖 **[Docs](https://docs.frontity.org)**: this is the place to learn how to build amazing sites with Frontity.
-- 👨‍👩‍👧‍👦 **[Community](https://community.frontity.org/)**: use our forum to [ask any questions](https://community.frontity.org/c/dev-talk-questions), feedback and meet great people. This is your place too to share [what are you building with Frontity](https://community.frontity.org/c/showcases)!
-- 🐞 **[GitHub](https://github.com/frontity/frontity)**: we use GitHub for bugs and pull requests. Questions are answered in the [community forum](https://community.frontity.org/)!
-- 🗣 **Social media**: a more informal place to interact with Frontity users, reach out to us on [Twitter](https://twitter.com/frontity).
-- 💌 **Newsletter**: do you want to receive the latest framework updates and news? Subscribe [here](https://frontity.org/)
-
-### » Get involved 🤗
-
-Got questions or feedback about Frontity? We'd love to hear from you. Use our [community forum](https://community.frontity.org) yo ! ❤️
-
-Frontity also welcomes contributions. There are many ways to support the project! If you don't know where to start, this guide might help → [How to contribute?](https://docs.frontity.org/contributing/how-to-contribute)
+  - AWS Credentials of an IAM user with `AWSLambda_FullAccess` permissions
+      - `AWS_ACCESS_KEY_ID`
+      - `AWS_SECRET_ACCESS_KEY`
+  - AWS region
+      - `AWS_DEFAULT_REGION`
+  - The name of your lambda function
+      - `AWS_LAMBDA_NAME`
