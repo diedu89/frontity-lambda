@@ -1,0 +1,58 @@
+version: 2.1
+
+# add your orb below, to be used in integration tests (note: a @dev:alpha
+# release must exist.);
+orbs:
+  aws-cli: circleci/aws-cli@1.3.1
+  node: circleci/node@4.1
+
+jobs:
+  build:
+    executor: node/default
+    steps:
+      - checkout
+      - node/install-packages
+      - run:
+          name: build frontity
+          command: npx frontity build
+      - node/install-packages:
+          cache-path: ~/project/lambda/node_modules
+          override-ci-command: cd lambda && npm ci 
+      - run:
+          name: package lambda
+          command: cd lambda && cp -R ../build ./build && zip -r lambda.zip .
+      - persist_to_workspace:
+          root: ./lambda
+          paths:
+            - lambda.zip
+  deploy:
+    executor: aws-cli/default
+    steps:
+      - aws-cli/setup:
+          profile-name: default
+      - attach_workspace:
+          at: .
+      - run:
+          name: update aws lambda function
+          command: aws lambda update-function-code --function-name $AWS_LAMBDA_NAME --zip-file fileb://./lambda.zip
+workflows:
+  version: 2
+  build-deploy:
+    jobs:
+      - build:
+          filters:
+            branches: 
+              only:
+                - main
+      - deploy:
+          context:
+            - frontity
+          requires:
+            - build
+          filters:
+            branches: 
+              only:
+                - main
+          
+          
+          
